@@ -8,9 +8,9 @@ load_dotenv()
 database_url = getenv("CONNECTION_STRING")
 
 if not database_url:
-    print("no conn str")
+    raise ValueError("CONNECTION_STRING is not set in environment variables")
     
-engine = create_engine(str(database_url))
+engine = create_engine(database_url)
 
 Sessionmaker = sessionmaker(
     autoflush=False,
