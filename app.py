@@ -1,10 +1,10 @@
 from fastapi import FastAPI,Response
 from routes import userRoutes,authRoutes,postRoutes
 from fastapi.middleware.cors import CORSMiddleware
-from supabase_client import supabase
+from lib.database import Base,engine
 
 
-
+Base.metadata.create_all(bind=engine)
 # Base.metadata.drop_all(bind=engine)
 
 server = FastAPI()
@@ -12,7 +12,7 @@ server = FastAPI()
 
 server.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:3000","https://stack-social.vercel.app","https://stack-social-ten.vercel.app",],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

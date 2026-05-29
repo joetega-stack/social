@@ -1,5 +1,5 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.orm import sessionmaker,declarative_base
 from dotenv import load_dotenv
 from os import getenv
 
@@ -8,9 +8,9 @@ load_dotenv()
 database_url = getenv("CONNECTION_STRING")
 
 if not database_url:
-    raise ValueError("CONNECTION_STRING is not set in environment variables")
+    print("no conn str")
     
-engine = create_engine(database_url)
+engine = create_engine(database_url, pool_pre_ping=True)
 
 Sessionmaker = sessionmaker(
     autoflush=False,

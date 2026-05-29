@@ -4,12 +4,14 @@ from fastapi import Depends,HTTPException
 from jose import jwt,ExpiredSignatureError
 from dotenv import load_dotenv
 from os import getenv
+from pathlib import Path
 from datetime import datetime,timedelta,timezone
 from sqlalchemy.orm import Session
 from lib.database import get_db
 from models.userModel import User
 
-load_dotenv()
+BASE_DIR = Path(__file__).resolve().parents[1]
+load_dotenv(dotenv_path=BASE_DIR / ".env", override=True)
 
 secret = getenv("SECRET")
 
