@@ -35,4 +35,6 @@ class User(Base):
         cascade="all, delete-orphan",
     )
     
+    sent_messages = relationship("Message", foreign_keys="Message.sender_id",cascade="all, delete-orphan")
+    
     

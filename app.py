@@ -1,5 +1,5 @@
 from fastapi import FastAPI,Response
-from routes import userRoutes,authRoutes,postRoutes
+from routes import userRoutes,authRoutes,postRoutes,messageRoutes
 from fastapi.middleware.cors import CORSMiddleware
 from lib.database import Base,engine
 
@@ -28,3 +28,4 @@ def check_health(response: Response):
 server.include_router(authRoutes.router)
 server.include_router(userRoutes.router)
 server.include_router(postRoutes.router)
+server.include_router(messageRoutes.router)
