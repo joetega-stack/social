@@ -7,8 +7,8 @@ class Message(Base):
     __tablename__= "messages"
     
     id = Column(Integer, primary_key=True)
-    conversation_id = Column(Integer,ForeignKey("users.id",ondelete="CASCADE"),nullable=False,)
-    sender_id = Column(Integer,ForeignKey("conversations.id",ondelete="CASCADE"),nullable=False,)
+    conversation_id = Column(Integer,ForeignKey("conversations.id",ondelete="CASCADE"),nullable=False,)
+    sender_id = Column(Integer,ForeignKey("users.id",ondelete="CASCADE"),nullable=False,)
     content = Column(Text, nullable=False,)
     created_at = Column(DateTime, server_default=func.now())
     conversation = relationship("Conversation",back_populates="messages",)

@@ -45,7 +45,21 @@ def get_all_users(db:Session=Depends(get_db),current_user: User=Depends(verify_t
         users = db.query(User).filter(User.id != current_user.id, User.admin == False).all()
         if not current_user.id:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Unauthorized" )
-        return users
+        return [
+            {
+                "id": user.id,
+                "username": user.username,
+                "profile_image": user.profile_image,
+                "bio": user.bio,
+                "is_following": (
+                    db.query(Follow).filter(
+                        Follow.follower_id == current_user.id,
+                        Follow.following_id == user.id
+                    ).first() is not None
+                )
+            }
+            for user in users
+        ]
     except HTTPException:
         raise
     except Exception:
@@ -72,15 +86,11 @@ def get_current_user(current_user: User=Depends(verify_token)):
     
 # get user profile
 @router.get("/user/{id}")
-def get_user(id: int, db: Session = Depends(get_db), admin=Depends(validate_admin)):
+def get_user(id: int, db: Session = Depends(get_db), current_user=Depends(verify_token)):
     try:
         user = db.query(User).filter(User.id == id).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
-        if not admin:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, detail="unauthorised"
-            )
         return {
             "id": user.id,
             "username": user.username,
@@ -89,6 +99,12 @@ def get_user(id: int, db: Session = Depends(get_db), admin=Depends(validate_admi
             "bio": user.bio,
             "profile_image": user.profile_image,
             "cover_image": user.cover_image,
+            "is_following": (
+                    db.query(Follow).filter(
+                        Follow.follower_id == current_user.id,
+                        Follow.following_id == user.id
+                    ).first() is not None
+                )
         }
     except HTTPException:
         raise
@@ -143,7 +159,7 @@ def update_password(update: UpdatePassword, db: Session=Depends(get_db), current
 
 # toggle follow and unfollow user
 @router.post("/follow/{id}")
-def follow_user(
+def toggle_follow(
     id: int, db: Session = Depends(get_db), current_user: User = Depends(verify_token)
 ):
     try:
@@ -160,6 +176,8 @@ def follow_user(
                 db.delete(existing_request)
                 db.commit()
                 return{"action":"follow_request_cancelled",
+                       "is_following": False,
+                       "is_requested": False,
                        "message": f"Your follow request to {target.username} has been cancelled"}
             else:
                 new_request = FollowRequest(requester_id=current_user.id, target_id=id)
@@ -167,6 +185,8 @@ def follow_user(
                 db.commit()
                 return{
                     "action":"follow_request_sent",
+                    "is_following": False,
+                    "is_requested": True,
                     "message": f"Follow request sent to {target.username}"
                 }
         existing = (
@@ -178,16 +198,19 @@ def follow_user(
             db.delete(existing)
             db.commit()
             action = {"message": "Unfollowed successfully"}
+            is_following=False
         else:
             new_follow = Follow(follower_id=current_user.id, following_id=id)
             db.add(new_follow)
             db.commit()
             action= {"message": f"You are now following {target.username}"}
+            is_following=True
         followers_count = db.query(Follow).filter(Follow.following_id == id).count()
         following_count = db.query(Follow).filter(Follow.follower_id == current_user.id).count()
         
         return {
             "action": action,
+            "is_following": is_following,
             "target_user":{
                 "id": target.id,
                 "username": target.username,

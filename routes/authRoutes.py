@@ -1,4 +1,4 @@
-from fastapi import APIRouter,Response,Depends,HTTPException,status
+from fastapi import APIRouter,Response,Depends,HTTPException,Request,status
 from sqlalchemy.orm import Session,joinedload
 from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel
@@ -31,10 +31,11 @@ class Found(BaseModel):
 @router.post("/register")
 def register_user(user: SignUpItem,db: Session = Depends(get_db)):
     try:
+        email = user.email.strip().lower()
         newUser = User(
             username = user.username,
             password= hash_password(user.password),
-            email= user.email,
+            email= email,
             # admin=user.admin
         )
         db.add(newUser)
@@ -54,7 +55,8 @@ def register_user(user: SignUpItem,db: Session = Depends(get_db)):
 @router.post("/login")
 def login_user(user: LoginUser,db: Session = Depends(get_db)):
     try:
-        found = db.query(User).filter(User.email == user.email).first()
+        email = user.email.strip().lower()
+        found = db.query(User).filter(User.email == email).first()
         if not found:
             raise HTTPException(status_code=401, detail="Invalid email or password")
         if not verify(user.password, found.password):
@@ -62,6 +64,9 @@ def login_user(user: LoginUser,db: Session = Depends(get_db)):
         found.token_version += 1
         db.commit()
         token = create_token({"username":found.username,"id":found.id,"token_version":found.token_version,"admin":found.admin})
+        print("RAW PASSWORD:", user.password)
+        print("HASH FROM DB:", found.password)
+        print("VERIFY RESULT:", verify(user.password, found.password))
         return {"access_token": token,"token_type": "bearer"}
     except HTTPException:
         raise

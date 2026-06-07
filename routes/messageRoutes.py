@@ -8,9 +8,13 @@ from models.followModel import Follow
 from models.chatModel import Conversation
 from models.messageModel import Message
 from utils.crypto import verify_token
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 
+
+class MessageCreate(BaseModel):
+    content: str
 
 @router.post("/start/{target_user_id}")
 def start_chat(
@@ -77,7 +81,7 @@ def start_chat(
     
 
 @router.post("/{conversation_id}/message")
-def send_message(conversation_id:int, content:str, db: Session=Depends(get_db),current_user:User=Depends(verify_token),):
+def send_message(conversation_id:int, message: MessageCreate, db: Session=Depends(get_db),current_user:User=Depends(verify_token),):
     conversation = (db.query(Conversation).filter(Conversation.id == conversation_id).first())
     
     if not conversation:
@@ -86,13 +90,43 @@ def send_message(conversation_id:int, content:str, db: Session=Depends(get_db),c
     if current_user.id not in [conversation.user_one_id, conversation.user_two_id]:
         raise HTTPException(status_code=403,detail="Not authorized",)
     
-    message = Message(conversation_id=conversation.id, sender_id=current_user.id, content=content,)
+    new_message = Message(conversation_id=conversation.id, sender_id=current_user.id, content=message.content,)
     
-    db.add(message)
+    db.add(new_message)
     db.commit()
-    db.refresh(message)
+    db.refresh(new_message)
     
     return {
         "message": "Message sent",
-        "data": message,
+        "data": new_message,
     }
+    
+    
+
+@router.get("/{conversation_id}/messages")
+def get_messages(conversation_id:int, db:Session=Depends(get_db),current_user: User=Depends(verify_token),):
+    conversation = (db.query(Conversation).filter(Conversation.id == conversation_id).first())
+    
+    if not conversation:
+        raise HTTPException(404, "Conversation not found")
+    
+    if current_user.id not in [
+        conversation.user_one_id,conversation.user_two_id,
+    ]:
+        raise HTTPException(403, "Not authorized")
+    
+    messages = (db.query(Message).filter(Message.conversation_id == conversation_id).order_by(Message.created_at.asc()).all())
+    
+    return [
+        {
+            "id": message.id,
+            "content": message.content,
+            "created_at": message.created_at,
+            "sender": {
+                "id":message.sender.id,
+                "username": message.sender.username,
+                "profile_image": message.sender.profile_image,
+            },
+        }
+        for message in messages
+    ]

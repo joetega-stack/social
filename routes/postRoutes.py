@@ -150,6 +150,42 @@ def get_user_post(
         
     return result
 
+@router.get("/friend/{user_id}")
+def get_friend_post(user_id: int, db: Session=Depends(get_db), current_user: User=Depends(verify_token),):
+    posts = (db.query(Post).options(
+        selectinload(Post.author),
+        selectinload(Post.likes),
+        selectinload(Post.comments).selectinload(Comment.author),
+    ).filter(Post.user_id == user_id).all())
+    
+    return [
+        {
+            "id": post.id,
+            "content": post.content,
+            "media_url": post.media_url,
+            "visibility": post.visibility,
+            "created_at": post.created_at,
+
+            "username": post.author.username,
+            "profile_image": post.author.profile_image,
+
+            "likes_count": len(post.likes),
+            "comments_count": len(post.comments),
+
+            "comments": [
+                {
+                    "id": c.id,
+                    "content": c.content,
+                    "created_at": c.created_at,
+                    "username": c.author.username if c.author else None,
+                    "profile_image": c.author.profile_image if c.author else None,
+                }
+                for c in sorted(post.comments, key=lambda x: x.created_at, reverse=True)[:2]
+            ],
+        }
+        for post in posts
+    ]
+
 
 
 @router.put("/update/{post_id}")
@@ -258,8 +294,6 @@ def public_feed(
 def following_feed(
     db: Session = Depends(get_db),
     current_user: User = Depends(verify_token),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(10, le=50),
 ):
     following_ids = (
         db.query(Follow.follower_id)
@@ -277,8 +311,6 @@ def following_feed(
         .filter(Post.visibility.in_(["public", "followers"]))
         .filter((Post.user_id.in_(following_ids)) | (Post.user_id == current_user.id))
         .order_by(Post.created_at.desc())
-        .offset(skip)
-        .limit(limit)
         .all()
     )
     result = []
@@ -316,6 +348,9 @@ def following_feed(
         
     return result
 
+
+
+
 @router.post("/{post_id}/like")
 def like_post(
     post_id: int,
@@ -352,6 +387,7 @@ def get_likes(
     current_user: User = Depends(verify_token),
 ):
     post = db.query(Post).filter(Post.id == post_id).first()
+    print("Found post", post)
     if not post:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"

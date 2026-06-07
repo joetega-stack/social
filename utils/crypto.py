@@ -10,8 +10,7 @@ from sqlalchemy.orm import Session
 from lib.database import get_db
 from models.userModel import User
 
-BASE_DIR = Path(__file__).resolve().parents[1]
-load_dotenv(dotenv_path=BASE_DIR / ".env", override=True)
+load_dotenv()
 
 secret = getenv("SECRET")
 
@@ -19,7 +18,7 @@ ALGORITHM= "HS256"
 expires = 60
 
 hash_context = CryptContext(schemes=['argon2'],deprecated="auto")
-oauth = OAuth2PasswordBearer(tokenUrl="login")
+oauth = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 def get_user_by_id(id: int,db:Session):
     try:
