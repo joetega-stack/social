@@ -7,10 +7,10 @@ from lib.database import Base,engine
 Base.metadata.create_all(bind=engine)
 # Base.metadata.drop_all(bind=engine)
 # print(Base.metadata.tables.keys())
-server = FastAPI()
+app = FastAPI()
 
 
-server.add_middleware(
+app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000","https://stack-social.vercel.app","https://stack-social-ten.vercel.app",],
     allow_credentials=True,
@@ -20,12 +20,12 @@ server.add_middleware(
 
 
 
-@server.get("/health")
+@app.get("/health")
 def check_health(response: Response):
     response.status_code = 200
     return {"message":"Server is healthy"}
 
-server.include_router(authRoutes.router)
-server.include_router(userRoutes.router)
-server.include_router(postRoutes.router)
-server.include_router(messageRoutes.router)
+app.include_router(authRoutes.router)
+app.include_router(userRoutes.router)
+app.include_router(postRoutes.router)
+app.include_router(messageRoutes.router)
