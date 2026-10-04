@@ -254,7 +254,7 @@ def toggle_follow(
 
 
 # get followers list
-@router.get("followers/{id}")
+@router.get("/followers/{id}")
 def my_followers(id: int, db: Session = Depends(get_db)):
     followers = (
         db.query(User)
@@ -277,7 +277,7 @@ def my_followers(id: int, db: Session = Depends(get_db)):
 
 
 # get following list
-@router.get("following/{id}")
+@router.get("/following/{id}")
 def my_following(id: int, db: Session = Depends(get_db)):
     following = (
         db.query(User)
