@@ -6,12 +6,10 @@ from lib.database import get_db
 from models.userModel import User
 from models.followModel import Follow
 from models.followRequest import FollowRequest
-from utils.crypto import verify_token, validate_admin,hash_password
+from utils.crypto import verify_token, validate_admin, hash_password
 from typing import Optional
 
-
-router=APIRouter(tags=['User'])
-
+router = APIRouter(tags=["User"])
 
 
 class UpdateUser(BaseModel):
@@ -21,30 +19,39 @@ class UpdateUser(BaseModel):
     profile_image: Optional[str] = None
     cover_image: Optional[str] = None
 
+
 class UpdatePassword(BaseModel):
     password: Optional[str] = None
-    
 
 
-#get all users admin
+# get all users admin
 @router.get("/users")
-def get_users(db: Session=Depends(get_db),admin = Depends(validate_admin)):
+def get_users(db: Session = Depends(get_db), admin=Depends(validate_admin)):
     try:
         if not admin:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="unauthorised")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="unauthorised"
+            )
         users = db.query(User).all()
         return users
     except HTTPException:
         raise
     except Exception:
-        raise HTTPException(500,detail="Failed to get users")
+        raise HTTPException(500, detail="Failed to get users")
+
 
 @router.get("/all/users")
-def get_all_users(db:Session=Depends(get_db),current_user: User=Depends(verify_token)):
+def get_all_users(
+    db: Session = Depends(get_db), current_user: User = Depends(verify_token)
+):
     try:
-        users = db.query(User).filter(User.id != current_user.id, User.admin == False).all()
+        users = (
+            db.query(User).filter(User.id != current_user.id, User.admin == False).all()
+        )
         if not current_user.id:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Unauthorized" )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized"
+            )
         return [
             {
                 "id": user.id,
@@ -52,11 +59,14 @@ def get_all_users(db:Session=Depends(get_db),current_user: User=Depends(verify_t
                 "profile_image": user.profile_image,
                 "bio": user.bio,
                 "is_following": (
-                    db.query(Follow).filter(
+                    db.query(Follow)
+                    .filter(
                         Follow.follower_id == current_user.id,
-                        Follow.following_id == user.id
-                    ).first() is not None
-                )
+                        Follow.following_id == user.id,
+                    )
+                    .first()
+                    is not None
+                ),
             }
             for user in users
         ]
@@ -64,11 +74,11 @@ def get_all_users(db:Session=Depends(get_db),current_user: User=Depends(verify_t
         raise
     except Exception:
         raise HTTPException(500, detail="Failed to get users")
-    
 
-#get current user
+
+# get current user
 @router.get("/users/current")
-def get_current_user(current_user: User=Depends(verify_token)):
+def get_current_user(current_user: User = Depends(verify_token)):
     try:
         return {
             "id": current_user.id,
@@ -78,15 +88,17 @@ def get_current_user(current_user: User=Depends(verify_token)):
             "following_count": len(current_user.following),
             "bio": current_user.bio,
             "profile_image": current_user.profile_image,
-            "cover_photo":current_user.cover_image,
+            "cover_photo": current_user.cover_image,
         }
     except Exception:
         raise HTTPException(status_code=500, detail="Failed to get user")
-    
-    
+
+
 # get user profile
 @router.get("/user/{id}")
-def get_user(id: int, db: Session = Depends(get_db), current_user=Depends(verify_token)):
+def get_user(
+    id: int, db: Session = Depends(get_db), current_user=Depends(verify_token)
+):
     try:
         user = db.query(User).filter(User.id == id).first()
         if not user:
@@ -100,11 +112,14 @@ def get_user(id: int, db: Session = Depends(get_db), current_user=Depends(verify
             "profile_image": user.profile_image,
             "cover_image": user.cover_image,
             "is_following": (
-                    db.query(Follow).filter(
-                        Follow.follower_id == current_user.id,
-                        Follow.following_id == user.id
-                    ).first() is not None
+                db.query(Follow)
+                .filter(
+                    Follow.follower_id == current_user.id,
+                    Follow.following_id == user.id,
                 )
+                .first()
+                is not None
+            ),
         }
     except HTTPException:
         raise
@@ -117,40 +132,40 @@ def get_user(id: int, db: Session = Depends(get_db), current_user=Depends(verify
 def update_profile(
     update: UpdateUser,
     db: Session = Depends(get_db),
-    current_user: User=Depends(verify_token),
+    current_user: User = Depends(verify_token),
 ):
     try:
         user = db.query(User).filter(User.id == current_user.id).first()
         if not user:
             raise HTTPException(404, detail="User not found")
-        update_data = update.model_dump(exclude_unset=True,exclude_none=True)
+        update_data = update.model_dump(exclude_unset=True, exclude_none=True)
         for key, value in update_data.items():
             setattr(user, key, value)
         db.commit()
         db.refresh(user)
-        return {
-            "message": "Profile updated successfully",
-            "user": user
-        }
+        return {"message": "Profile updated successfully", "user": user}
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
- 
- 
-    
+
+
 @router.patch("/update-password")
-def update_password(update: UpdatePassword, db: Session=Depends(get_db), current_user:User=Depends(verify_token)):
+def update_password(
+    update: UpdatePassword,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(verify_token),
+):
     try:
         user = db.query(User).filter(User.id == current_user.id).first()
         if not user:
             raise HTTPException(404, detail="User not found")
         update_data = update.model_dump(exclude_unset=True)
         if "password" in update_data:
-            user.password= hash_password(update_data["password"])
+            user.password = hash_password(update_data["password"])
             db.commit()
             db.refresh(user)
-            return {"message":"Password update successfully"}
+            return {"message": "Password update successfully"}
     except HTTPException:
         raise
     except Exception as e:
@@ -170,24 +185,31 @@ def toggle_follow(
             raise HTTPException(status_code=404, detail="User not found")
         if target.is_private:
             existing_request = (
-                db.query(FollowRequest).filter(FollowRequest.requester_id == current_user.id,FollowRequest.target_id == id).first()
+                db.query(FollowRequest)
+                .filter(
+                    FollowRequest.requester_id == current_user.id,
+                    FollowRequest.target_id == id,
+                )
+                .first()
             )
             if existing_request:
                 db.delete(existing_request)
                 db.commit()
-                return{"action":"follow_request_cancelled",
-                       "is_following": False,
-                       "is_requested": False,
-                       "message": f"Your follow request to {target.username} has been cancelled"}
+                return {
+                    "action": "follow_request_cancelled",
+                    "is_following": False,
+                    "is_requested": False,
+                    "message": f"Your follow request to {target.username} has been cancelled",
+                }
             else:
                 new_request = FollowRequest(requester_id=current_user.id, target_id=id)
                 db.add(new_request)
                 db.commit()
-                return{
-                    "action":"follow_request_sent",
+                return {
+                    "action": "follow_request_sent",
                     "is_following": False,
                     "is_requested": True,
-                    "message": f"Follow request sent to {target.username}"
+                    "message": f"Follow request sent to {target.username}",
                 }
         existing = (
             db.query(Follow)
@@ -198,29 +220,31 @@ def toggle_follow(
             db.delete(existing)
             db.commit()
             action = {"message": "Unfollowed successfully"}
-            is_following=False
+            is_following = False
         else:
             new_follow = Follow(follower_id=current_user.id, following_id=id)
             db.add(new_follow)
             db.commit()
-            action= {"message": f"You are now following {target.username}"}
-            is_following=True
+            action = {"message": f"You are now following {target.username}"}
+            is_following = True
         followers_count = db.query(Follow).filter(Follow.following_id == id).count()
-        following_count = db.query(Follow).filter(Follow.follower_id == current_user.id).count()
-        
+        following_count = (
+            db.query(Follow).filter(Follow.follower_id == current_user.id).count()
+        )
+
         return {
             "action": action,
             "is_following": is_following,
-            "target_user":{
+            "target_user": {
                 "id": target.id,
                 "username": target.username,
-                "followers_count": followers_count
+                "followers_count": followers_count,
             },
-            "current_user":{
+            "current_user": {
                 "id": current_user.id,
                 "username": current_user.username,
-                "following_count": following_count 
-            }
+                "following_count": following_count,
+            },
         }
     except HTTPException:
         raise
@@ -230,14 +254,12 @@ def toggle_follow(
 
 
 # get followers list
-@router.get("/me/followers")
-def my_followers(
-    db: Session = Depends(get_db), current_user: User = Depends(verify_token)
-):
+@router.get("followers/{id}")
+def my_followers(id: int, db: Session = Depends(get_db)):
     followers = (
         db.query(User)
         .join(Follow, Follow.follower_id == User.id)
-        .filter(Follow.following_id == current_user.id)
+        .filter(Follow.following_id == id)
         .all()
     )
     return [
@@ -255,14 +277,12 @@ def my_followers(
 
 
 # get following list
-@router.get("/me/following")
-def my_following(
-    db: Session = Depends(get_db), current_user: User = Depends(verify_token)
-):
+@router.get("following/{id}")
+def my_following(id: int, db: Session = Depends(get_db)):
     following = (
         db.query(User)
         .join(Follow, Follow.following_id == User.id)
-        .filter(Follow.follower_id == current_user.id)
+        .filter(Follow.follower_id == id)
         .all()
     )
     return [
@@ -279,9 +299,11 @@ def my_following(
     ]
 
 
-#toggle update privacy
+# toggle update privacy
 @router.patch("/privacy")
-def update_privacy(db: Session = Depends(get_db),current_user: User=Depends(verify_token)):
+def update_privacy(
+    db: Session = Depends(get_db), current_user: User = Depends(verify_token)
+):
     try:
         user = db.query(User).filter(User.id == current_user.id).first()
         if not user:
@@ -289,12 +311,12 @@ def update_privacy(db: Session = Depends(get_db),current_user: User=Depends(veri
         user.is_private = not user.is_private
         db.commit()
         db.refresh(user)
-        
-        return{
+
+        return {
             "id": user.id,
             "username": user.username,
             "is_private": user.is_private,
-            "message": f"Privacy set to {'private' if user.is_private else 'Public'}"
+            "message": f"Privacy set to {'private' if user.is_private else 'Public'}",
         }
     except HTTPException:
         raise
@@ -303,36 +325,37 @@ def update_privacy(db: Session = Depends(get_db),current_user: User=Depends(veri
         raise HTTPException(status_code=500, detail=str(e))
 
 
-#admin delete account
+# admin delete account
 @router.delete("/admin/delete-account/{id}")
-def admin_delete_account(id: int, db:Session=Depends(get_db),admin: User=Depends(validate_admin)):
+def admin_delete_account(
+    id: int, db: Session = Depends(get_db), admin: User = Depends(validate_admin)
+):
     try:
         user = db.query(User).filter(User.id == id).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         db.delete(user)
         db.commit()
-        return {"message":"user deleted successfully"}
+        return {"message": "user deleted successfully"}
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=(e))
-    
-    
 
-#user delete account
+
+# user delete account
 @router.delete("/me/delete")
-def self_delete_account(db:Session=Depends(get_db), current_user: User = Depends(verify_token)):
+def self_delete_account(
+    db: Session = Depends(get_db), current_user: User = Depends(verify_token)
+):
     try:
         user = db.query(User).filter(User.id == current_user.id).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         db.delete(user)
         db.commit()
-        return{
-            "message":"Account deleted"
-        }
+        return {"message": "Account deleted"}
     except HTTPException:
         raise
     except Exception as e:
