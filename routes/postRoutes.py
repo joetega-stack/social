@@ -97,13 +97,15 @@ def get_my_post(db: Session = Depends(get_db), current_user=Depends(verify_token
 def get_user_post(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(verify_token),
-    admin=Depends(validate_admin),
+    current_user:User = Depends(verify_token)
 ):
-    if current_user.id != user_id and not admin:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized"
-        )
+    profile_user =(db.query(User).filter(User.id == user_id).first())
+    if not profile_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    is_owner = current_user.id == user_id
+    is_admin = current_user.admin
+    is_follower=(db.query(Follow).filter(Follow.follower_id == current_user.id, Follow.following_id == user_id).first() is not None)
+    
     posts = (
         db.query(Post)
         .options(
@@ -112,12 +114,28 @@ def get_user_post(
             selectinload(Post.comments).selectinload(Comment.author),
         )
         .filter(Post.user_id == user_id)
+        .order_by(Post.created_at.desc())
         .all()
     )
     
     result = []
 
     for post in posts:
+        if is_admin:
+            can_view= True
+        elif is_owner:
+            can_view = True
+        elif post.visibility == "public":
+            can_view= True
+        elif post.visibility == "followers":
+            can_view = is_follower
+        elif post.visibility == "private":
+            can_view=False
+        else:
+            can_view = False
+        if not can_view:
+            continue
+        
         result.append({
             "id":post.id,
             "content": post.content,
@@ -125,7 +143,7 @@ def get_user_post(
             "visibility": post.visibility,
             "created_at": post.created_at,
             
-            #user info from relationship
+            #user info
             "username": post.author.username,
             "profile_image": post.author.profile_image,
             
@@ -290,14 +308,14 @@ def public_feed(
 
 
 
-@router.get("/feed/following/{id}")
-def following_feed(id:int,
+@router.get("/feed/following")
+def following_feed(
     db: Session = Depends(get_db),
     current_user: User = Depends(verify_token),
 ):
     following_ids = (
         db.query(Follow.follower_id)
-        .filter(Follow.follower_id == id)
+        .filter(Follow.follower_id == current_user.id)
         .subquery()
     )
     posts = (
