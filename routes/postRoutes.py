@@ -290,14 +290,14 @@ def public_feed(
 
 
 
-@router.get("/feed/following")
-def following_feed(
+@router.get("/feed/following/{id}")
+def following_feed(id:int,
     db: Session = Depends(get_db),
     current_user: User = Depends(verify_token),
 ):
     following_ids = (
         db.query(Follow.follower_id)
-        .filter(Follow.follower_id == current_user.id)
+        .filter(Follow.follower_id == id)
         .subquery()
     )
     posts = (
