@@ -138,6 +138,7 @@ def get_user_post(
         
         result.append({
             "id":post.id,
+            "user_id": post.user_id,
             "content": post.content,
             "media_url": post.media_url,
             "visibility": post.visibility,
