@@ -327,8 +327,8 @@ def following_feed(
             selectinload(Post.comments).selectinload(Comment.author),
         )
         .filter(Post.user_id.in_(following_ids))
+        .filter(Post.user_id != current_user.id)
         .filter(Post.visibility.in_(["public", "followers"]))
-        .filter((Post.user_id.in_(following_ids)) | (Post.user_id == current_user.id))
         .order_by(Post.created_at.desc())
         .all()
     )
