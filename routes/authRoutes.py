@@ -13,8 +13,8 @@ router=APIRouter(prefix="/auth",tags=['Auth'])
 
 
 class LoginUser(BaseModel):
-    password: str
     email: str
+    password: str
 
 class SignUpItem(BaseModel):
     username: str
