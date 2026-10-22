@@ -315,7 +315,7 @@ def following_feed(
     current_user: User = Depends(verify_token),
 ):
     following_ids = (
-        db.query(Follow.follower_id)
+        db.query(Follow.following_id)
         .filter(Follow.follower_id == current_user.id)
         .subquery()
     )
